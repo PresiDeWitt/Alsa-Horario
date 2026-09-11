@@ -25,19 +25,20 @@ const readline = require('readline');
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'cuadrante.json');
 const OUT = path.join(ROOT, 'js', 'data.js');
-const ITERATIONS = 300000;
+const ITERATIONS = 600000;
 
-const WORDS = ['autobus', 'faro', 'noche', 'ruta', 'luna', 'asfalto', 'madrugada', 'volante', 'parada', 'billete',
-  'motor', 'espejo', 'semana', 'turno', 'descanso', 'amarillo', 'carretera', 'viaje', 'andén', 'salida',
-  'llegada', 'puerto', 'costa', 'mar', 'sierra', 'peaje', 'túnel', 'puente', 'rotonda', 'gasolina'];
+// Alfabeto sin caracteres que se confundan (sin 0/O, 1/I/L): 20 caracteres ≈ 98 bits de entropía.
+const ALPHABET = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
+const MIN_LENGTH = 16;
 
 function normalize(code) {
   return String(code).normalize('NFKC').trim().toLowerCase();
 }
 
 function generate() {
-  const pick = () => WORDS[crypto.randomInt(WORDS.length)];
-  return [pick(), pick(), pick(), String(crypto.randomInt(10, 100))].join('-');
+  const chars = [];
+  for (let i = 0; i < 20; i++) chars.push(ALPHABET[crypto.randomInt(ALPHABET.length)]);
+  return chars.join('').replace(/(.{4})(?=.)/g, '$1-');
 }
 
 function ask(question) {
@@ -80,8 +81,8 @@ async function main() {
   if (args.includes('--nueva')) code = generate();
   if (!code) code = await ask('Clave de acceso: ');
   code = normalize(code);
-  if (code.length < 8) {
-    console.error('La clave debe tener al menos 8 caracteres.');
+  if (code.replace(/[\s-]/g, '').length < MIN_LENGTH) {
+    console.error(`La clave debe tener al menos ${MIN_LENGTH} caracteres (sin contar guiones). Usa --nueva para generar una fuerte.`);
     process.exit(1);
   }
 
@@ -117,7 +118,7 @@ window.HORARIO_DEFAULTS = {
   console.log(sameCode
     ? 'Misma clave: los dispositivos ya autorizados siguen abriendo sin pedirla.'
     : 'Clave nueva: todos los dispositivos pedirán la clave al abrir la app.');
-  if (args.includes('--nueva')) console.log(`\nClave de acceso nueva:  ${code}\n\nGuárdala: hay que escribirla en cada dispositivo.`);
+  if (args.includes('--nueva')) console.log(`\nClave de acceso nueva:  ${code.toUpperCase()}\n\nGuárdala: hay que escribirla en cada dispositivo (da igual mayúsculas o minúsculas).`);
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });

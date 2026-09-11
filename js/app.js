@@ -3,6 +3,10 @@
   'use strict';
 
   const STORAGE_KEY = 'horario-alsa.v1';
+  const LOCKOUT_KEY = 'horario-alsa.intentos';
+  const FREE_ATTEMPTS = 3;     // intentos sin espera
+  const BLOCK_AT = 12;         // a partir de aquí, 24 h
+  const BLOCK_MS = 24 * 3600 * 1000;
   const N_TURNOS = 8;
   const DOW_MED = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
   const DOW_LONG = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
@@ -473,6 +477,46 @@
   function b64(str) { return Uint8Array.from(atob(str), (c) => c.charCodeAt(0)); }
   function toB64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
   function normalizeCode(code) { return String(code).normalize('NFKC').trim().toLowerCase(); }
+
+  // Intentos fallidos en este dispositivo: esperas crecientes y bloqueo de 24 h.
+  function readLockout() {
+    try { return JSON.parse(localStorage.getItem(LOCKOUT_KEY) || 'null') || { fails: 0, until: 0 }; } catch (e) { return { fails: 0, until: 0 }; }
+  }
+  function writeLockout(lo) {
+    try { localStorage.setItem(LOCKOUT_KEY, JSON.stringify(lo)); } catch (e) { /* sin almacenamiento */ }
+  }
+  function waitFor(fails) {
+    if (fails <= FREE_ATTEMPTS) return 0;
+    if (fails >= BLOCK_AT) return BLOCK_MS;
+    return Math.min(3600 * 1000, 30 * 1000 * Math.pow(2, fails - FREE_ATTEMPTS - 1)); // 30 s, 1, 2, 4… min, tope 1 h
+  }
+  function fmtWait(ms) {
+    const s = Math.ceil(ms / 1000);
+    if (s < 60) return s + ' s';
+    const m = Math.ceil(s / 60);
+    if (m < 60) return m + ' min';
+    const h = Math.round(m / 60);
+    return h + ' h';
+  }
+  let lockTimer = null;
+  function refreshLockout() {
+    clearTimeout(lockTimer);
+    const lo = readLockout();
+    const left = lo.until - Date.now();
+    if (left > 0) {
+      el.lockCode.disabled = true;
+      el.lockBtn.disabled = true;
+      el.lockError.textContent = lo.fails >= BLOCK_AT
+        ? 'Dispositivo bloqueado ' + fmtWait(left) + ' por demasiados intentos.'
+        : 'Demasiados intentos. Espera ' + fmtWait(left) + '.';
+      el.lockError.hidden = false;
+      lockTimer = setTimeout(refreshLockout, left > 60000 ? 30000 : 1000);
+      return true;
+    }
+    el.lockCode.disabled = false;
+    el.lockBtn.disabled = false;
+    return false;
+  }
   async function deriveKey(code) {
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(normalizeCode(code)), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey(
@@ -490,7 +534,7 @@
     document.body.classList.add('is-locked');
     el.lock.hidden = false;
     if (message) { el.lockError.textContent = message; el.lockError.hidden = false; }
-    setTimeout(() => el.lockCode.focus(), 50);
+    if (!refreshLockout()) setTimeout(() => el.lockCode.focus(), 50);
   }
   function hideLock() {
     el.lock.hidden = true;
@@ -498,6 +542,7 @@
   }
   el.lockForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (refreshLockout()) return;
     el.lockError.hidden = true;
     el.lockBtn.disabled = true;
     el.lockBtn.textContent = 'Comprobando…';
@@ -508,15 +553,24 @@
       const saved = readSaved() || {};
       saved.key = toB64(raw);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (err) { /* sin almacenamiento */ }
+      try { localStorage.removeItem(LOCKOUT_KEY); } catch (err) { /* nada */ }
       el.lockCode.value = '';
-      start(payload);
-    } catch (err) {
-      el.lockError.textContent = 'Clave incorrecta. Comprueba mayúsculas, guiones y espacios.';
-      el.lockError.hidden = false;
-      el.lockCode.select();
-    } finally {
       el.lockBtn.disabled = false;
       el.lockBtn.textContent = 'Entrar';
+      start(payload);
+    } catch (err) {
+      const lo = readLockout();
+      lo.fails += 1;
+      lo.until = Date.now() + waitFor(lo.fails);
+      writeLockout(lo);
+      el.lockBtn.disabled = false;
+      el.lockBtn.textContent = 'Entrar';
+      if (!refreshLockout()) {
+        const left = Math.max(0, FREE_ATTEMPTS - lo.fails);
+        el.lockError.textContent = 'Clave incorrecta.' + (left > 0 ? ' Te quedan ' + left + (left === 1 ? ' intento' : ' intentos') + ' antes de tener que esperar.' : '');
+        el.lockError.hidden = false;
+        el.lockCode.select();
+      }
     }
   });
 

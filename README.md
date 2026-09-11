@@ -40,6 +40,11 @@ app solo lo abre con la **clave de acceso**. Quien no la tenga ve una pantalla d
   se sube), ejecutar `node tools/cifrar.js` con la clave actual y publicar con `git push`. Los dispositivos
   que no hayan editado su cuadrante adoptan el nuevo al abrir la app.
 
+- **Contra la fuerza bruta**: la clave generada tiene 20 caracteres (unos 98 bits): no se puede adivinar
+  probando, ni descargando el fichero cifrado. Cada intento cuesta además 600 000 iteraciones de PBKDF2.
+  En el propio dispositivo, tras 3 fallos hay esperas crecientes (30 s, 1, 2, 4… min, hasta 1 h) y al
+  duodécimo fallo el dispositivo queda bloqueado 24 h. Si te la inventas tú (`--clave`), mínimo 16 caracteres.
+
 La clave actual está en `clave.txt` (solo en este PC). Ni `clave.txt` ni `cuadrante.json` entran en el repositorio.
 
 ## Cómo funciona la rotación
