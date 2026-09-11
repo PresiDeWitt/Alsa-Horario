@@ -1,5 +1,5 @@
 /* Horario — cache de la app para que abra sin conexión */
-const CACHE = 'horario-v4';
+const CACHE = 'horario-v5';
 const SHELL = [
   './',
   './index.html',
@@ -27,13 +27,15 @@ self.addEventListener('activate', (event) => {
 });
 
 // Red primero (para recibir cambios), cache si no hay conexión.
+// `no-cache` obliga a revalidar con el servidor en vez de usar la cache HTTP del navegador.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  const init = req.mode === 'navigate' ? undefined : { cache: 'no-cache' };
   event.respondWith(
-    fetch(req)
+    fetch(req, init)
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));

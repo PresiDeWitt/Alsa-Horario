@@ -15,7 +15,7 @@
   const MONTHS_AHEAD = 15;  // meses que se pintan al arrancar
   const MONTHS_CHUNK = 6;   // meses que se añaden al llegar a un extremo
 
-  const SEALED = window.HORARIO_DEFAULTS; // cuadrante cifrado (tools/cifrar.js)
+  let SEALED = window.HORARIO_DEFAULTS;   // cuadrante cifrado (tools/cifrar.js)
   let defaults = null;                     // { cuadrante } una vez descifrado
   const el = {
     topDate: document.getElementById('top-date'),
@@ -524,6 +524,32 @@
       base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']
     );
   }
+  // Descarga js/data.js saltándose cualquier cache: si se acaba de publicar una clave o un
+  // cuadrante nuevo, el navegador puede tener todavía la versión anterior.
+  async function fetchSealed() {
+    const res = await fetch('js/data.js?fresh=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('fetch');
+    const txt = await res.text();
+    const get = (re) => { const m = txt.match(re); return m ? m[1] : null; };
+    const salt = get(/salt:\s*"([^"]+)"/);
+    const iv = get(/iv:\s*"([^"]+)"/);
+    const data = get(/data:\s*"([^"]+)"/);
+    if (!salt || !iv || !data) throw new Error('formato');
+    return {
+      version: Number(get(/version:\s*(\d+)/) || 0),
+      kdf: { name: 'PBKDF2', hash: get(/hash:\s*"([^"]+)"/) || 'SHA-256', iterations: Number(get(/iterations:\s*(\d+)/) || 0), salt },
+      cipher: { name: 'AES-GCM', iv },
+      data,
+    };
+  }
+  async function refreshSealed() {
+    try {
+      const fresh = await fetchSealed();
+      if (fresh.version === SEALED.version && fresh.kdf.salt === SEALED.kdf.salt && fresh.data === SEALED.data) return false;
+      SEALED = fresh;
+      return true;
+    } catch (e) { return false; }
+  }
   async function unseal(key) {
     const buf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(SEALED.cipher.iv) }, key, b64(SEALED.data));
     const payload = JSON.parse(new TextDecoder().decode(buf));
@@ -547,8 +573,16 @@
     el.lockBtn.disabled = true;
     el.lockBtn.textContent = 'Comprobando…';
     try {
-      const key = await deriveKey(el.lockCode.value);
-      const payload = await unseal(key);
+      let key = await deriveKey(el.lockCode.value);
+      let payload;
+      try {
+        payload = await unseal(key);
+      } catch (first) {
+        // Puede que el navegador tenga un cuadrante antiguo en cache: se prueba con el actual.
+        if (!(await refreshSealed())) throw first;
+        key = await deriveKey(el.lockCode.value);
+        payload = await unseal(key);
+      }
       const raw = await crypto.subtle.exportKey('raw', key);
       const saved = readSaved() || {};
       saved.key = toB64(raw);
@@ -597,11 +631,15 @@
     }
     const saved = readSaved();
     if (saved && saved.key) {
+      const key = await crypto.subtle.importKey('raw', b64(saved.key), { name: 'AES-GCM' }, true, ['decrypt']);
       try {
-        const key = await crypto.subtle.importKey('raw', b64(saved.key), { name: 'AES-GCM' }, true, ['decrypt']);
         start(await unseal(key));
         return;
       } catch (e) {
+        // Antes de dar la llave por caducada, se comprueba con el cuadrante recién descargado.
+        if (await refreshSealed()) {
+          try { start(await unseal(key)); return; } catch (e2) { /* la clave ha cambiado de verdad */ }
+        }
         showLock('La clave de acceso ha cambiado. Escribe la nueva.');
         return;
       }
