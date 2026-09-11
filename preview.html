@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Horario, vista previa</title>
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #f2f2f7;
+      --panel: #ffffff;
+      --panel-2: #e5e5ea;
+      --line: #e0e0e5;
+      --text: #111114;
+      --text-2: #6e6e73;
+      --text-3: #aeaeb2;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    .pv-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 32px 10px;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    .pv-top h1 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
+    .pv-top p { margin: 2px 0 0; color: var(--text-2); font-size: 14px; }
+    .seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--panel-2); }
+    .seg button {
+      padding: 8px 16px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2);
+      font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    }
+    .seg button.is-active { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+    .pv {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) minmax(360px, 520px);
+      gap: 36px;
+      align-items: start;
+      padding: 12px 32px 48px;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) { .pv { grid-template-columns: 1fr; } }
+
+    /* --- el teléfono --- */
+    .stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .stage-scale { transform-origin: top center; }
+    .phone {
+      width: 390px; height: 844px; padding: 12px;
+      border-radius: 58px; background: #050507; position: relative;
+      box-shadow: 0 40px 90px rgba(0, 0, 0, 0.35), inset 0 0 0 2px #2b2b30, inset 0 0 0 5px #0f0f12;
+    }
+    .phone::before, .phone::after { content: ""; position: absolute; right: -3px; width: 3px; border-radius: 2px; background: #2b2b30; }
+    .phone::before { top: 190px; height: 90px; }
+    .phone::after { left: -3px; right: auto; top: 160px; height: 36px; box-shadow: 0 54px 0 #2b2b30, 0 118px 0 #2b2b30; }
+    .phone[data-os="android"] { border-radius: 42px; }
+    .screen {
+      width: 100%; height: 100%; border-radius: 46px; overflow: hidden; background: #ffffff;
+      display: flex; flex-direction: column; position: relative;
+    }
+    .phone[data-os="android"] .screen { border-radius: 30px; }
+    .statusbar {
+      flex: none; height: 54px; display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 32px 0; font-weight: 600; font-size: 16px; position: relative; color: #111114;
+      background: #ffffff; transition: background 0.2s, color 0.2s;
+    }
+    .island {
+      position: absolute; left: 50%; top: 11px; transform: translateX(-50%);
+      width: 122px; height: 35px; border-radius: 20px; background: #000;
+    }
+    .phone[data-os="android"] .statusbar { height: 40px; padding-top: 0; font-size: 14px; }
+    .phone[data-os="android"] .island { width: 16px; height: 16px; border-radius: 50%; top: 12px; }
+    .sb-icons { display: flex; gap: 6px; align-items: center; }
+    .sb-icons svg { height: 13px; width: auto; }
+    .screen iframe { flex: 1; border: 0; width: 100%; display: block; background: #ffffff; }
+    .home {
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      width: 134px; height: 5px; border-radius: 3px; background: rgba(17, 17, 20, 0.85); pointer-events: none;
+    }
+    .screen.is-dark .home { background: rgba(255, 255, 255, 0.92); }
+    .phone[data-os="android"] .home { width: 110px; height: 4px; }
+    .hint { margin: 0; color: var(--text-3); font-size: 13px; text-align: center; max-width: 380px; }
+    .screen .flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .screen.is-opening .flash { opacity: 1; transition: none; }
+
+    /* --- panel derecho --- */
+    .panel { display: flex; flex-direction: column; gap: 18px; }
+    .panel h2 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; }
+    .panel > p { margin: 0; color: var(--text-2); font-size: 14px; max-width: 60ch; }
+    .card { padding: 18px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); }
+    .card h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text-2); }
+    .card p { margin: 12px 0 0; font-size: 13px; color: var(--text-3); }
+    .card p b { color: var(--text-2); font-weight: 600; }
+    .card p code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); }
+    .card ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--text-2); display: grid; gap: 6px; }
+    .card ul b { color: var(--text); font-weight: 600; }
+
+    /* Icono de la app */
+    .app-icon { display: flex; align-items: center; gap: 16px; padding: 4px 0 16px; }
+    .app-icon img { width: 64px; height: 64px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.15); }
+    .app-icon b { display: block; font-size: 15px; }
+    .app-icon span { font-size: 13px; color: var(--text-2); }
+
+    /* Centro de control iOS 18 */
+    .cc {
+      border-radius: 28px; padding: 16px;
+      background: linear-gradient(160deg, #3a3f52 0%, #1d2130 100%);
+      display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 66px; gap: 12px;
+      color: #fff;
+    }
+    .cc .grp {
+      grid-column: span 2; grid-row: span 2; border-radius: 22px; background: rgba(255, 255, 255, 0.12);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px;
+    }
+    .cc .grp i, .cc .tile { display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
+    .cc .grp i.on { background: #3478f6; }
+    .cc .grp i.green { background: #34c759; }
+    .cc .grp i svg, .cc .tile svg { width: 22px; height: 22px; }
+    .cc .slider { grid-row: span 2; border-radius: 22px; background: rgba(255, 255, 255, 0.12); position: relative; overflow: hidden; }
+    .cc .slider::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: rgba(255, 255, 255, 0.85); }
+    .cc .tile { border-radius: 22px; }
+    .cc .control {
+      grid-column: span 2; border-radius: 22px; background: rgba(255, 255, 255, 0.16);
+      display: flex; align-items: center; gap: 12px; padding: 0 16px; text-align: left;
+      border: 0; cursor: pointer; font: inherit; color: #fff;
+    }
+    .cc .control:active { background: rgba(255, 255, 255, 0.26); }
+    .cc .control .ico { width: 30px; height: 30px; flex: none; }
+    .cc .control b { display: block; font-size: 15px; font-weight: 600; line-height: 1.2; }
+    .cc .control .sub { display: block; font-size: 13px; opacity: 0.72; line-height: 1.2; }
+
+    /* Ajustes rápidos Android 15 */
+    .qs {
+      border-radius: 24px; padding: 18px 16px; background: #0e1116;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; color: #dfe3ea;
+    }
+    .qs-head { grid-column: span 2; display: flex; justify-content: space-between; color: #9aa3b2; font-size: 13px; font-weight: 600; padding: 0 6px 4px; }
+    .qs .t {
+      height: 64px; border-radius: 32px; display: flex; align-items: center; gap: 12px; padding: 0 18px;
+      background: #2a2e36; color: #dfe3ea; font-weight: 600; font-size: 14px; text-align: left;
+      border: 0; font-family: inherit;
+    }
+    .qs .t svg { width: 22px; height: 22px; flex: none; }
+    .qs .t.on { background: #a8c8ff; color: #0b1c3a; }
+    .qs .t b { display: block; font-weight: 600; line-height: 1.2; }
+    .qs .t small { display: block; font-weight: 500; font-size: 11.5px; opacity: 0.75; line-height: 1.2; }
+    .qs .t.app { cursor: pointer; }
+    .qs .t.app .ico { width: 24px; height: 24px; }
+    .qs .t.app:active { filter: brightness(0.92); }
+
+    .cc, .qs { display: none; }
+    body[data-os="ios"] .cc, body[data-os="android"] .qs { display: grid; }
+  </style>
+</head>
+<body data-os="ios">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="ico-bus" viewBox="0 0 64 64">
+      <g fill="currentColor">
+        <rect x="7" y="20" width="4" height="10" rx="1.5"/>
+        <rect x="53" y="20" width="4" height="10" rx="1.5"/>
+        <rect x="15" y="54" width="10" height="5.5" rx="2"/>
+        <rect x="39" y="54" width="10" height="5.5" rx="2"/>
+        <path fill-rule="evenodd" d="M21 8h22a9 9 0 0 1 9 9v32a5 5 0 0 1-5 5H17a5 5 0 0 1-5-5V17a9 9 0 0 1 9-9zm-1 7h24a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H20a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3zm1 23.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm22 0a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <header class="pv-top">
+    <div>
+      <h1>Horario</h1>
+      <p>Así se verá en el móvil. Es la app real: desplázate por los meses, toca un día, ajusta el turno con el engranaje.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Sistema">
+      <button type="button" data-os="ios" class="is-active">iPhone</button>
+      <button type="button" data-os="android">Android</button>
+    </div>
+  </header>
+
+  <main class="pv">
+    <section class="stage">
+      <div class="stage-scale" id="stage-scale">
+        <div class="phone" id="phone" data-os="ios">
+          <div class="screen" id="screen">
+            <div class="statusbar" id="statusbar">
+              <span class="sb-time" id="sb-time">9:41</span>
+              <span class="island"></span>
+              <span class="sb-icons">
+                <svg viewBox="0 0 20 14" fill="currentColor"><rect x="0" y="9" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="8" rx="1"/><rect x="10" y="3" width="3" height="11" rx="1"/><rect x="15" y="0" width="3" height="14" rx="1"/></svg>
+                <svg viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M1.5 4.5a11 11 0 0 1 15 0M4.2 7.4a7 7 0 0 1 9.6 0M6.9 10.2a3 3 0 0 1 4.2 0"/><circle cx="9" cy="12.6" r="1" fill="currentColor" stroke="none"/></svg>
+                <svg viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="23" height="12" rx="3.5"/><rect x="3" y="3" width="17" height="8" rx="2" fill="currentColor" stroke="none"/><path d="M26 5v4" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+            <iframe id="app" src="index.html" title="Horario"></iframe>
+            <div class="home"></div>
+            <div class="flash"></div>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Se guarda en el navegador: si eliges tu turno, la próxima vez seguirá ahí.</p>
+    </section>
+
+    <aside class="panel">
+      <h2>El botón «Horario» junto al Wi‑Fi</h2>
+      <p>Pulsa el botón para ver cómo abre la app. Muestra el servicio de hoy, leído de la app en vivo.</p>
+
+      <div class="card">
+        <div class="app-icon">
+          <img src="icons/icon-192.png" alt="Icono de Horario" width="64" height="64">
+          <div><b>Horario</b><span>Icono de la app y, en monocromo, del botón.</span></div>
+        </div>
+        <h3 id="mock-title">Centro de control (iPhone, iOS 18)</h3>
+
+        <div class="cc" aria-label="Centro de control">
+          <div class="grp">
+            <i title="Modo avión"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></i>
+            <i class="green" title="Datos móviles"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h3v-6H4zm5.5 0h3V9h-3zm5.5 0h3V4h-3z"/></svg></i>
+            <i class="on" title="Wi‑Fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 8.5a14 14 0 0 1 19 0M6 12a9 9 0 0 1 12 0M9.5 15.5a4 4 0 0 1 5 0"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg></i>
+            <i class="on" title="Bluetooth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg></i>
+          </div>
+          <div class="slider" title="Brillo"></div>
+          <div class="slider" title="Volumen"></div>
+          <button type="button" class="control" data-action="open" title="Abrir Horario">
+            <svg class="ico"><use href="#ico-bus"/></svg>
+            <span><b>Horario</b><span class="sub" data-today>Hoy</span></span>
+          </button>
+          <div class="tile" title="Linterna"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v3l-2 3v14H9V8L7 5zm5 9a1.3 1.3 0 1 0 0 2.6A1.3 1.3 0 0 0 12 11z"/></svg></div>
+          <div class="tile" title="Cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg></div>
+        </div>
+
+        <div class="qs" aria-label="Ajustes rápidos">
+          <div class="qs-head"><span id="qs-date">sáb, 12 sep</span><span>78 %</span></div>
+          <div class="t on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 8.5a14 14 0 0 1 19 0M6 12a9 9 0 0 1 12 0M9.5 15.5a4 4 0 0 1 5 0"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg><span><b>Internet</b><small>Casa_5G</small></span></div>
+          <div class="t on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 4V3l5 4L7 17"/></svg><span><b>Bluetooth</b><small>Activado</small></span></div>
+          <button type="button" class="t on app" data-action="open" title="Abrir Horario">
+            <svg class="ico"><use href="#ico-bus"/></svg>
+            <span><b>Horario</b><small data-today>Hoy</small></span>
+          </button>
+          <div class="t"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v3l-2 3v14H9V8L7 5zm5 9a1.3 1.3 0 1 0 0 2.6A1.3 1.3 0 0 0 12 11z"/></svg><span><b>Linterna</b></span></div>
+          <div class="t"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg><span><b>Modo avión</b></span></div>
+          <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg><span><b>No molestar</b></span></div>
+        </div>
+
+        <p id="mock-note"></p>
+      </div>
+
+      <div class="card">
+        <h3>Qué incluye la app</h3>
+        <ul>
+          <li><b>Arriba, fijo:</b> el servicio de hoy y cuándo es el próximo descanso.</li>
+          <li><b>El calendario:</b> todos los meses seguidos; los descansos en amarillo, la hora de cada servicio en azul (Sevilla) o rojo (Cartagena).</li>
+          <li><b>Un día:</b> al tocarlo, su servicio, el turno y la semana completa.</li>
+          <li><b>Ajustes:</b> turno de esta semana, cuadrante editable y aspecto claro u oscuro.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    (function () {
+      var body = document.body;
+      var phone = document.getElementById('phone');
+      var screen = document.getElementById('screen');
+      var statusbar = document.getElementById('statusbar');
+      var app = document.getElementById('app');
+      var scaleEl = document.getElementById('stage-scale');
+      var title = document.getElementById('mock-title');
+      var note = document.getElementById('mock-note');
+      var NOTES = {
+        ios: '<b>Cómo llega ahí:</b> en iOS 18 es un control del Centro de control con este icono (código en <code>native/ios</code>). Sin app nativa, un atajo que abra Horario también se puede añadir como control.',
+        android: '<b>Cómo llega ahí:</b> es un botón de Ajustes rápidos con este icono, que abre Horario y puede mostrar el servicio del día (código en <code>native/android</code>). Necesita envolver la web en una app mínima; hasta entonces, el icono en la pantalla de inicio funciona igual.'
+      };
+      var TITLES = { ios: 'Centro de control (iPhone, iOS 18)', android: 'Ajustes rápidos (Android)' };
+
+      function setOs(os) {
+        body.dataset.os = os;
+        phone.dataset.os = os;
+        document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('is-active', b.dataset.os === os); });
+        title.textContent = TITLES[os];
+        note.innerHTML = NOTES[os];
+      }
+      document.querySelectorAll('.seg button').forEach(function (b) {
+        b.addEventListener('click', function () { setOs(b.dataset.os); });
+      });
+      setOs('ios');
+
+      document.querySelectorAll('[data-action="open"]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          screen.classList.add('is-opening');
+          app.src = 'index.html?t=' + Date.now();
+          setTimeout(function () { screen.classList.remove('is-opening'); }, 350);
+        });
+      });
+
+      // La app avisa de su tema y del servicio de hoy.
+      window.addEventListener('message', function (e) {
+        if (!e.data) return;
+        if (e.data.type === 'horario:theme') {
+          var light = e.data.theme === 'light';
+          screen.classList.toggle('is-dark', !light);
+          statusbar.style.background = light ? '#ffffff' : '#000000';
+          statusbar.style.color = light ? '#111114' : '#ffffff';
+          app.style.background = light ? '#ffffff' : '#000000';
+        } else if (e.data.type === 'horario:today') {
+          document.querySelectorAll('[data-today]').forEach(function (n) { n.textContent = e.data.text; });
+        }
+      });
+
+      function fit() {
+        var avail = window.innerHeight - 150;
+        var s = Math.min(1, Math.max(0.5, avail / 844));
+        scaleEl.style.transform = 'scale(' + s + ')';
+        scaleEl.style.height = Math.round(844 * s) + 'px';
+      }
+      window.addEventListener('resize', fit);
+      fit();
+
+      function clock() {
+        var d = new Date();
+        var dows = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+        var months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        document.getElementById('sb-time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+        document.getElementById('qs-date').textContent = dows[d.getDay()] + ', ' + d.getDate() + ' ' + months[d.getMonth()];
+      }
+      clock();
+      setInterval(clock, 30000);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Horario</title>
+  <meta name="description" content="Calendario del cuadrante rotativo ALSA: servicios y descansos de todo el año.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Horario">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top" id="top">
+    <div class="top-row">
+      <p class="top-date" id="top-date"></p>
+      <div class="top-actions">
+        <button type="button" class="btn-today" id="btn-today" hidden>Hoy</button>
+        <button type="button" class="btn-icon" id="btn-settings" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2"/>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <p class="top-shift" id="top-shift"></p>
+    <p class="top-sub" id="top-sub"></p>
+    <div class="dow" aria-hidden="true">
+      <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+    </div>
+  </header>
+
+  <main class="cal">
+    <div id="sentinel-top" class="sentinel" aria-hidden="true"></div>
+    <div id="months"></div>
+    <div id="sentinel-bottom" class="sentinel" aria-hidden="true"></div>
+  </main>
+
+  <section class="lock" id="lock" hidden>
+    <form class="lock-card" id="lock-form" autocomplete="off">
+      <img class="lock-icon" src="icons/icon-192.png" alt="" width="72" height="72">
+      <h1 class="lock-title">Horario</h1>
+      <p class="lock-text">Escribe la clave de acceso para ver el horario en este dispositivo. Solo hace falta una vez.</p>
+      <input class="lock-input" id="lock-code" type="password" placeholder="Clave de acceso" required autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <button class="lock-btn" id="lock-btn" type="submit">Entrar</button>
+      <p class="lock-error" id="lock-error" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle del día" hidden></section>
+  <section class="settings" id="settings" role="dialog" aria-modal="true" aria-label="Ajustes" hidden></section>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

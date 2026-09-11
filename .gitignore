@@ -1,0 +1,14 @@
+# Captura original del cuadrante (datos personales): no se publica
+Captura de pantalla*.png
+*.png.bak
+
+# Local
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Cuadrante en claro y clave: solo en este PC
+cuadrante.json
+clave.txt

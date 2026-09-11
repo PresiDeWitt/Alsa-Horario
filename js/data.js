@@ -1,0 +1,10 @@
+/*
+  Cuadrante cifrado. Se genera con  node tools/cifrar.js  a partir de cuadrante.json.
+  La app lo descifra con la clave de acceso; sin ella no se puede leer.
+*/
+window.HORARIO_DEFAULTS = {
+  version: 6,
+  kdf: { name: "PBKDF2", hash: "SHA-256", iterations: 300000, salt: "dN8e11I4cu9nNrPChBuHmg==" },
+  cipher: { name: "AES-GCM", iv: "RjyRTwSZrRYyNIWJ" },
+  data: "/+Qb5eyY5TPQtOY0XijJ+4XBIbiH64U94egwjGLnwM4S7Vapq6XvQP1fe/o90WhWR2BVSf1tBdzdr74oEVSquDEikXFS29SccqucBLGfnLqNTdsprLPqzUlHIaFaSNflTZhmFwyVQ8HnRFLwQZRjqSLWB7iSurS/e68Gt1MWhVCHpshPZVrsiRZofwlwc2waqD8u0ocbzxMqZFH8yk+NoFvADQIBvnG2UX5HVjRHT+9lTtNf0wOPhgfAbXYwu+Lq7sgWy1cHNAzex6nQXfKWEI3xdagLuOxuHRV3RtyODd68I+N/3a9jloNQLjo5TO4ACPFNFNaP5q3zJ9aL/mDGNv+Bqh/zCsFAurZvR2Nt0gWxt2JHT1rOsO+Lu5dy224xQ3Z2vgVlp7k8aE+jbPZf9s980SXTMEIuc4apfT2MoE1UGMYHBFyYmcSMXCb+bcZ/2dZ7pxILSQQX6BTcY2DlrYhzvLmqrI0Rx2TnTP/J3gUcJXEqQpEF/Y1lL0ygj1yp/kQO/Xicau9whQx6y2WCyK0LqKs9fGYL3W8/cKVCLzueyY0HjN/Pq8RClKy0Gx7/SXKgSkiSqxdrn6QMOUk59E64aZedTyPyFCRkXxbtlSIhn9amUyR4VcHgzoOqQWn6NXdCO6gr8EqbRwZMLvqsypP4f9RPd2gpLaofFIcG8/kgFwrUzpFPcgoivg8HR0rWlP5CTK78edK/G/iiy4Xq6W8o+S8Qbkc7B8YFg1Xs9Er2HSOBOi9OmtSsxSL6Gx2uaHFzYNdoiu1CgVuhtQBcAc4DLSn/6lfSc05KVqGIzQtFCRifJHroxQ/f7OKon9u+J48Fckj8agf5/nxQkoYRLB0dtHkRhxkBniI1bg3gonzzJHT4okFSQ66nyc2LBhIGwrnultEqY6lAZNLFmonNh1UWVgtOhAGTb3z70+IQnuKUHVUWSUKpJTO6SEZ0z2BiT1pXM+q3/Rb80lDI7S09gEYSaYTOHHgnhaubxSauVuU3QJNIrxSpldj2d5GaffQIATs5et1xjt6IUp+JSxxOJM5Ypdc3kiiyL8EgDLY8q25Io6zjWpTIdCFBih3wBinOPVA4ZIvG11GrAdgGi7nuNCqH1YVXsKOmnUz/0mTfQoOelNKufWva1zmag5SjWibicHFoZNNhCuQjD/Ulgn7Gw71piTSpicDnBZVZer1IaVl7o1vE3gexADxG3EEPD+rBp2UCj645mLRrWHaqES6m6oSiCc7Bbp8+CMZed3ZBGwc7O0MZnG2pVgs+UQiqUhRuc+8w7LirXpcbmDfUoYR4GMqjbC/e3V50Xr14woKLgEK3iWlLsungfW9tnCtZoXKWfaZkEXr63XiFDUL172msgXrwnb6sC+OA0FqCpDL/sQi3f+0dFic88I1z2VuMHY4ceIKSAWjZB6O5BbEGCIRS5dlwIjno20H5Fc+LM8hFUPZJzT22",
+};
