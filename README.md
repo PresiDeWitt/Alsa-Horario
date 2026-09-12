@@ -25,7 +25,7 @@ y abre <http://localhost:4173/preview.html>: la app dentro de un móvil (iPhone 
 El cuadrante no está en claro en internet: `js/data.js` lo lleva **cifrado** (PBKDF2 + AES‑256‑GCM) y la
 app solo lo abre con la **clave de acceso**. Quien no la tenga ve una pantalla de bloqueo y nada más.
 
-- **Dar acceso a un dispositivo**: abrir la app en él y escribir la clave. Queda autorizado para siempre
+- **Dar acceso a un dispositivo**: abrir la app en él y escribir la clave (da igual mayúsculas, guiones o espacios). Queda autorizado para siempre
   (se guarda en ese dispositivo) y funciona sin conexión.
 - **Quitar el acceso a un dispositivo que tienes en la mano**: Ajustes → *Quitar el acceso en este dispositivo*.
 - **Dejar fuera a un dispositivo que no tienes**: cambiar la clave. En este PC:

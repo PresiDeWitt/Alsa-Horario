@@ -14,7 +14,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Horario">
-  <link rel="stylesheet" href="css/styles.css?v=5">
+  <link rel="stylesheet" href="css/styles.css?v=6">
 </head>
 <body>
   <header class="top" id="top">
@@ -48,7 +48,11 @@
       <img class="lock-icon" src="icons/icon-192.png" alt="" width="72" height="72">
       <h1 class="lock-title">Horario</h1>
       <p class="lock-text">Escribe la clave de acceso para ver el horario en este dispositivo. Solo hace falta una vez.</p>
-      <input class="lock-input" id="lock-code" type="password" placeholder="Clave de acceso" required autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <div class="lock-field">
+        <input class="lock-input" id="lock-code" type="password" placeholder="Clave de acceso" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+        <button class="lock-show" id="lock-show" type="button">Mostrar</button>
+      </div>
+      <p class="lock-hint">Da igual mayúsculas, guiones o espacios.</p>
       <button class="lock-btn" id="lock-btn" type="submit">Entrar</button>
       <p class="lock-error" id="lock-error" role="alert" hidden></p>
       <p class="lock-meta" id="lock-meta"></p>
@@ -59,7 +63,7 @@
   <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle del día" hidden></section>
   <section class="settings" id="settings" role="dialog" aria-modal="true" aria-label="Ajustes" hidden></section>
 
-  <script src="js/data.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
+  <script src="js/data.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
 </body>
 </html>

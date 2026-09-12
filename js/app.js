@@ -44,6 +44,7 @@
     lockBtn: document.getElementById('lock-btn'),
     lockError: document.getElementById('lock-error'),
     lockMeta: document.getElementById('lock-meta'),
+    lockShow: document.getElementById('lock-show'),
     sheet: document.getElementById('sheet'),
     settings: document.getElementById('settings'),
     top: document.getElementById('top'),
@@ -488,7 +489,8 @@
   /* Acceso: el cuadrante viaja cifrado y se abre con la clave -------- */
   function b64(str) { return Uint8Array.from(atob(str), (c) => c.charCodeAt(0)); }
   function toB64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
-  function normalizeCode(code) { return String(code).normalize('NFKC').trim().toLowerCase(); }
+  // Igual que tools/cifrar.js: minúsculas y sin espacios ni guiones de ningún tipo.
+  function normalizeCode(code) { return String(code).normalize('NFKC').toLowerCase().replace(/[\s\u002d\u2010-\u2015\u2212_]/g, ''); }
 
   // Intentos fallidos en este dispositivo: esperas crecientes y bloqueo de 24 h.
   function readLockout() {
@@ -586,6 +588,12 @@
     el.lock.hidden = true;
     document.body.classList.remove('is-locked');
   }
+  el.lockShow.addEventListener('click', () => {
+    const show = el.lockCode.type === 'password';
+    el.lockCode.type = show ? 'text' : 'password';
+    el.lockShow.textContent = show ? 'Ocultar' : 'Mostrar';
+    el.lockCode.focus();
+  });
   el.lockForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (refreshLockout()) return;

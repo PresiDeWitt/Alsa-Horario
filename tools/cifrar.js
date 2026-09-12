@@ -31,8 +31,9 @@ const ITERATIONS = 600000;
 const ALPHABET = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
 const MIN_LENGTH = 16;
 
+// Minúsculas y sin espacios ni guiones: «XXGF-BN8S», «xxgf bn8s» y «xxgfbn8s» son la misma clave.
 function normalize(code) {
-  return String(code).normalize('NFKC').trim().toLowerCase();
+  return String(code).normalize('NFKC').toLowerCase().replace(/[\s\u002d\u2010-\u2015\u2212_]/g, '');
 }
 
 function generate() {
@@ -81,7 +82,7 @@ async function main() {
   if (args.includes('--nueva')) code = generate();
   if (!code) code = await ask('Clave de acceso: ');
   code = normalize(code);
-  if (code.replace(/[\s-]/g, '').length < MIN_LENGTH) {
+  if (code.length < MIN_LENGTH) {
     console.error(`La clave debe tener al menos ${MIN_LENGTH} caracteres (sin contar guiones). Usa --nueva para generar una fuerte.`);
     process.exit(1);
   }
