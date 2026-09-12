@@ -1,11 +1,11 @@
 /* Horario — cache de la app para que abra sin conexión */
-const CACHE = 'horario-v5';
+const CACHE = 'horario-b3';
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css',
-  './js/data.js',
-  './js/app.js',
+  './css/styles.css?v=3',
+  './js/data.js?v=3',
+  './js/app.js?v=3',
   './manifest.webmanifest',
   './icons/favicon.svg',
   './icons/icon-192.png',
@@ -33,9 +33,11 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  const init = req.mode === 'navigate' ? undefined : { cache: 'no-cache' };
+  const request = req.mode === 'navigate'
+    ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' })
+    : new Request(req, { cache: 'no-cache' });
   event.respondWith(
-    fetch(req, init)
+    fetch(request)
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));

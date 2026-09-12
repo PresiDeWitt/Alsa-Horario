@@ -17,6 +17,17 @@
 
   let SEALED = window.HORARIO_DEFAULTS;   // cuadrante cifrado (tools/cifrar.js)
   let defaults = null;                     // { cuadrante } una vez descifrado
+  // Si el navegador ha mezclado un index.html antiguo con este app.js (caches de GitHub Pages),
+  // faltan elementos: se recarga una sola vez saltándose la cache.
+  if (!document.getElementById('lock-form')) {
+    const once = 'horario-recarga';
+    if (!sessionStorage.getItem(once)) {
+      sessionStorage.setItem(once, '1');
+      location.replace(location.pathname + '?r=' + Date.now());
+    }
+    return;
+  }
+
   const el = {
     topDate: document.getElementById('top-date'),
     topShift: document.getElementById('top-shift'),
@@ -624,6 +635,15 @@
   async function boot() {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     applyTheme();
+    // data.js antiguo en cache (sin cifrar o de otra versión): se descarga el actual.
+    if (!SEALED || !SEALED.data || !SEALED.kdf) {
+      await refreshSealed();
+      if (!SEALED || !SEALED.data) {
+        showLock('No se ha podido cargar el horario. Comprueba la conexión y vuelve a abrir la app.');
+        el.lockBtn.disabled = true;
+        return;
+      }
+    }
     if (!window.crypto || !crypto.subtle) {
       showLock('Este navegador no puede abrir el horario aquí. Ábrelo desde la dirección https de la app.');
       el.lockBtn.disabled = true;
