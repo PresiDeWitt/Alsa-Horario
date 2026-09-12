@@ -3,7 +3,6 @@ Captura de pantalla*.png
 *.png.bak
 
 # Local
-.claude/
 __pycache__/
 *.pyc
 .DS_Store
