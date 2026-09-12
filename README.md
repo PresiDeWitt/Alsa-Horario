@@ -34,10 +34,10 @@ app solo lo abre con la **clave de acceso**. Quien no la tenga ve una pantalla d
   node tools/cifrar.js --nueva
   ```
 
-  muestra la clave nueva y vuelve a cifrar. Después `git add -A`, `git commit -m "Nueva clave"`, `git push`.
+  muestra la clave nueva y vuelve a cifrar. Después publica con `node tools/publicar.js "Nueva clave"`.
   Todos los dispositivos pedirán la clave nueva; escríbela solo en los que quieras conservar.
 - **Cambiar el cuadrante para todos los dispositivos**: editar `cuadrante.json` (solo existe en este PC, no
-  se sube), ejecutar `node tools/cifrar.js` con la clave actual y publicar con `git push`. Los dispositivos
+  se sube), ejecutar `node tools/cifrar.js` con la clave actual y publicar con `node tools/publicar.js "Cuadrante nuevo"`. Los dispositivos
   que no hayan editado su cuadrante adoptan el nuevo al abrir la app.
 
 - **Contra la fuerza bruta**: la clave generada tiene 20 caracteres (unos 98 bits): no se puede adivinar
@@ -46,6 +46,18 @@ app solo lo abre con la **clave de acceso**. Quien no la tenga ve una pantalla d
   duodécimo fallo el dispositivo queda bloqueado 24 h. Si te la inventas tú (`--clave`), mínimo 16 caracteres.
 
 La clave actual está en `clave.txt` (solo en este PC). Ni `clave.txt` ni `cuadrante.json` entran en el repositorio.
+
+## Publicar cambios
+
+Un solo comando, desde la carpeta del proyecto:
+
+```bash
+node tools/publicar.js "qué has cambiado"
+```
+
+Sube el número de versión (`version.json`), lo pone en las direcciones de los ficheros para que ningún
+navegador mezcle versiones antiguas y nuevas (GitHub Pages cachea 10 minutos), y hace commit y push.
+En medio minuto está en la web. La app, si detecta ficheros de versiones distintas, se recarga sola.
 
 ## Cómo funciona la rotación
 
@@ -82,6 +94,8 @@ preview.html          entorno local: móvil + mock del botón
 servir.cmd            arranca el servidor local y abre la vista previa
 tools/serve.py        servidor estático (respeta la variable PORT, sin cache)
 tools/cifrar.js       cifra cuadrante.json en js/data.js con la clave de acceso
+tools/publicar.js     versiona los ficheros y publica (commit + push)
+version.json          número de versión publicada
 cuadrante.json        cuadrante en claro (solo en este PC)
 clave.txt             clave de acceso actual (solo en este PC)
 ```
