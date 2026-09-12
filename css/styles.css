@@ -390,7 +390,8 @@ body.is-locked .top, body.is-locked .cal { visibility: hidden; }
   font-weight: 600;
 }
 .lock-btn:disabled { opacity: 0.5; }
-.lock-error { margin-top: 12px; font-size: 14px; color: var(--carta); }
+.lock-error { margin-top: 12px; font-size: 14px; color: var(--carta); overflow-wrap: anywhere; }
+.lock-meta { margin-top: 24px; font-size: 12px; color: var(--ink-3); }
 
 /* Accesibilidad y escritorio ------------------------------------------ */
 @media (prefers-reduced-motion: reduce) {

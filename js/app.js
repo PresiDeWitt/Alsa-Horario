@@ -43,6 +43,7 @@
     lockCode: document.getElementById('lock-code'),
     lockBtn: document.getElementById('lock-btn'),
     lockError: document.getElementById('lock-error'),
+    lockMeta: document.getElementById('lock-meta'),
     sheet: document.getElementById('sheet'),
     settings: document.getElementById('settings'),
     top: document.getElementById('top'),
@@ -567,9 +568,17 @@
     if (!Array.isArray(payload.cuadrante) || payload.cuadrante.length !== N_TURNOS) throw new Error('cuadrante');
     return payload;
   }
+  function lockMeta() {
+    const v = document.querySelector('script[src*="app.js"]');
+    const build = v && /v=(\d+)/.test(v.getAttribute('src')) ? RegExp.$1 : '?';
+    el.lockMeta.textContent = 'Versión ' + build + ', cuadrante ' + (SEALED && SEALED.version ? SEALED.version : '?')
+      + (SEALED && SEALED.kdf ? ', ' + SEALED.kdf.iterations / 1000 + 'k' : ', sin cifrar')
+      + (window.isSecureContext ? '' : ', sin https');
+  }
   function showLock(message) {
     document.body.classList.add('is-locked');
     el.lock.hidden = false;
+    lockMeta();
     if (message) { el.lockError.textContent = message; el.lockError.hidden = false; }
     if (!refreshLockout()) setTimeout(() => el.lockCode.focus(), 50);
   }
@@ -604,12 +613,19 @@
       el.lockBtn.textContent = 'Entrar';
       start(payload);
     } catch (err) {
+      el.lockBtn.disabled = false;
+      el.lockBtn.textContent = 'Entrar';
+      // OperationError = el cifrado no abre con esa clave. Cualquier otro error es del navegador, no de la clave.
+      const wrongKey = !err || err.name === 'OperationError' || err.message === 'cuadrante';
+      if (!wrongKey) {
+        el.lockError.textContent = 'El navegador no ha podido comprobar la clave: ' + (err.name || 'Error') + ' - ' + (err.message || err);
+        el.lockError.hidden = false;
+        return;
+      }
       const lo = readLockout();
       lo.fails += 1;
       lo.until = Date.now() + waitFor(lo.fails);
       writeLockout(lo);
-      el.lockBtn.disabled = false;
-      el.lockBtn.textContent = 'Entrar';
       if (!refreshLockout()) {
         const left = Math.max(0, FREE_ATTEMPTS - lo.fails);
         el.lockError.textContent = 'Clave incorrecta.' + (left > 0 ? ' Te quedan ' + left + (left === 1 ? ' intento' : ' intentos') + ' antes de tener que esperar.' : '');
