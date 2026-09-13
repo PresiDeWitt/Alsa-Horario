@@ -1,11 +1,11 @@
 /* Horario — cache de la app para que abra sin conexión */
-const CACHE = 'horario-b9';
+const CACHE = 'horario-b10';
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css?v=9',
-  './js/data.js?v=9',
-  './js/app.js?v=9',
+  './css/styles.css?v=10',
+  './js/data.js?v=10',
+  './js/app.js?v=10',
   './manifest.webmanifest',
   './icons/favicon.svg',
   './icons/icon-192.png',
@@ -39,8 +39,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        // Solo se guardan respuestas correctas; las descargas de comprobación (?fresh=) no.
+        if (res.ok && !url.searchParams.has('fresh')) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
         return res;
       })
       .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))

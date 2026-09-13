@@ -261,7 +261,7 @@
       sub = next ? 'Vuelve ' + relDay(next) + ', ' + esc(shiftText(shiftFor(next))) : 'Sin servicios próximos';
     } else {
       const next = nextOfType(today, 'descanso');
-      sub = (s.servicio ? 'Servicio ' + esc(s.servicio) + '. ' : '') + (next ? 'Descanso ' + relDay(next) : '');
+      sub = (s.servicio ? 'Servicio ' + esc(s.servicio) + '. ' : '') + (next ? (shiftFor(next).vacation ? 'Vacaciones ' : 'Descanso ') + relDay(next) : '');
     }
 
     const m = mercFor(today);
@@ -280,9 +280,14 @@
       : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours);
 
     const both = nextBoth(today);
-    const bothVal = both
-      ? (sameDay(both, today) ? '<span class="mark">Hoy</span>' : cap(relDay(both)) + (daysBetween(today, both) >= 7 ? '' : ' ' + both.getDate()))
-      : 'Ninguno en los próximos seis meses';
+    let bothVal = 'Ninguno en los próximos seis meses';
+    if (both) {
+      const n = daysBetween(today, both);
+      if (n === 0) bothVal = '<span class="mark">Hoy</span>';
+      else if (n < 3) bothVal = cap(relDay(both));
+      else if (n < 7) bothVal = cap(relDay(both)) + ' ' + both.getDate();
+      else bothVal = cap(relDay(both));
+    }
 
     el.topRows.innerHTML = '<span class="top-k">ALSA</span><span class="top-v tone-' + s.tone + '">' + shiftTitle(s) + '<small>' + sub + '</small></span>'
       + '<span class="top-k">Mercadona</span><span class="top-v">' + mVal + (mSub ? '<small>' + mSub + '</small>' : '') + '</span>'
@@ -310,8 +315,7 @@
       const m = mercFor(date);
       const isRest = s.type === 'descanso';
       const mRest = m.type === 'libre';
-      if (isRest) rest++; else work++;
-      if (s.vacation) vac++;
+      if (s.vacation) vac++; else if (isRest) rest++; else work++;
       if (isRest && mRest) both++;
       const cls = ['cell', 'tone-' + s.tone];
       if (s.vacation) cls.push('is-vac'); else if (isRest) cls.push('is-rest');
@@ -467,6 +471,11 @@
   el.scrim.addEventListener('click', closeSheet);
 
   /* Ajustes ----------------------------------------------------------- */
+  function rerenderSettings() {
+    const y = el.settings.scrollTop;
+    renderSettings();
+    el.settings.scrollTop = y;
+  }
   function renderSettings() {
     const monday = mondayOf(today);
     const current = turnoFor(today);
@@ -492,7 +501,8 @@
     const wk = mercWeek(refMonday);
     let dows = '';
     for (let i = 0; i < 7; i++) {
-      dows += '<button type="button" class="turno' + (i === wk.restDow ? ' is-active' : '') + '" data-action="merc-rest" data-dow="' + i + '" aria-pressed="' + (i === wk.restDow) + '" aria-label="' + DOW_LONG[i] + '">' + ['L', 'M', 'X', 'J', 'V', 'S', 'D'][i] + '</button>';
+      const off = mc.sundayOff && i === 6;
+      dows += '<button type="button" class="turno' + (i === wk.restDow ? ' is-active' : '') + '" data-action="merc-rest" data-dow="' + i + '" aria-pressed="' + (i === wk.restDow) + '" aria-label="' + DOW_LONG[i] + '"' + (off ? ' disabled title="Los domingos ya son libres"' : '') + '>' + ['L', 'M', 'X', 'J', 'V', 'S', 'D'][i] + '</button>';
     }
     const mercSeg = ['M', 'T'].map((t) =>
       '<button type="button" class="' + (wk.shift === t ? 'is-active' : '') + '" data-action="merc-shift" data-shift="' + t + '" aria-pressed="' + (wk.shift === t) + '">' + MERC_SHIFT[t] + '</button>').join('');
@@ -608,25 +618,26 @@
       state.configured = true;
       saveState();
       renderAll();
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'set-theme') {
       state.theme = btn.dataset.theme;
       saveState();
       applyTheme();
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'reset-cuadrante') {
       if (window.confirm('¿Volver al cuadrante original? Se perderán las celdas que hayas cambiado.')) {
         state.cuadrante = defaults.cuadrante.map((r) => r.slice());
         state.edited = false;
         saveState();
         renderAll();
-        renderSettings();
+        rerenderSettings();
       }
     } else if (a === 'merc-week') {
       const base = settingsWeek || mondayOf(fromIso(state.mercadona.anchorMonday));
       settingsWeek = addDays(base, 7 * Number(btn.dataset.delta));
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'merc-rest' || a === 'merc-shift') {
+      if (a === 'merc-rest' && state.mercadona.sundayOff && Number(btn.dataset.dow) === 6) return;
       // Re-anclar en la semana elegida con lo que ya se calcula para ella, cambiando solo lo tocado.
       const monday = settingsWeek || mondayOf(fromIso(state.mercadona.anchorMonday));
       const wk = mercWeek(monday);
@@ -635,7 +646,7 @@
       state.mercadona.shift = a === 'merc-shift' ? btn.dataset.shift : wk.shift;
       saveState();
       renderAll();
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'vac-toggle') {
       if (!sheetDay) return;
       const who = btn.dataset.who;
@@ -649,19 +660,20 @@
     } else if (a === 'vac-add') {
       const from = document.getElementById('vac-from').value;
       const to = document.getElementById('vac-to').value || from;
-      const who = (document.querySelector('.vac-form .seg .is-active') || {}).dataset ? document.querySelector('.vac-form .seg .is-active').dataset.who : 'both';
+      const active = document.querySelector('.vac-form .seg .is-active');
+      const who = active ? active.dataset.who : 'both';
       if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { document.getElementById('vac-from').focus(); return; }
       addVacation(from, to, who);
       saveState();
       renderAll();
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'vac-who') {
       document.querySelectorAll('.vac-form .seg button').forEach((b) => b.classList.toggle('is-active', b === btn));
     } else if (a === 'vac-remove') {
       state.vacations.splice(Number(btn.dataset.index), 1);
       saveState();
       renderAll();
-      renderSettings();
+      rerenderSettings();
     } else if (a === 'forget-device') {
       if (window.confirm('¿Quitar el acceso en este dispositivo? Para volver a ver el horario habrá que escribir la clave.')) {
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* nada */ }
@@ -678,9 +690,10 @@
     const check = e.target.closest('input[data-merc]');
     if (check) {
       state.mercadona[check.dataset.merc] = check.checked;
+      if (check.dataset.merc === 'sundayOff' && check.checked && state.mercadona.restDow === 6) state.mercadona.restDow = 0;
       saveState();
       renderAll();
-      renderSettings();
+      rerenderSettings();
       return;
     }
     const hours = e.target.closest('input[data-merc-hours]');
@@ -849,6 +862,7 @@
       saved.key = toB64(raw);
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch (err) { /* sin almacenamiento */ }
       try { localStorage.removeItem(LOCKOUT_KEY); } catch (err) { /* nada */ }
+      clearTimeout(lockTimer);
       el.lockCode.value = '';
       el.lockBtn.disabled = false;
       el.lockBtn.textContent = 'Entrar';
