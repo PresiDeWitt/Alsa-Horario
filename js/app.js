@@ -443,15 +443,38 @@
     void el.sheet.offsetHeight;
     el.sheet.classList.add('is-open');
     el.scrim.classList.add('is-open');
+    lockPage(true);
   }
   function closeSheet() {
     if (el.sheet.hidden) return;
     el.sheet.classList.remove('is-open');
     el.scrim.classList.remove('is-open');
+    lockPage(false);
     sheetTimer = setTimeout(() => { el.sheet.hidden = true; el.scrim.hidden = true; }, 300);
   }
+
+  // Mientras una capa (hoja o ajustes) está abierta, la página de detrás no se desplaza:
+  // ni con la rueda ni encadenando el gesto cuando la capa llega a su tope.
+  function lockPage(on) {
+    document.documentElement.classList.toggle('has-modal', on);
+  }
+  function containScroll(box) {
+    let y0 = 0;
+    box.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+    box.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - y0;
+      const atTop = box.scrollTop <= 0;
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1;
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+    }, { passive: false });
+  }
+  containScroll(el.sheet);
+  containScroll(el.settings);
+  el.scrim.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  el.scrim.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
   let dragY = null;
-  el.sheet.addEventListener('pointerdown', (e) => { if (el.sheet.scrollTop === 0) dragY = e.clientY; });
+  el.sheet.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && el.sheet.scrollTop === 0) dragY = e.clientY; });
   el.sheet.addEventListener('pointermove', (e) => {
     if (dragY == null) return;
     const dy = Math.max(0, e.clientY - dragY);
@@ -581,10 +604,12 @@
     el.settings.hidden = false;
     void el.settings.offsetHeight;
     el.settings.classList.add('is-open');
+    lockPage(true);
   }
   function closeSettings() {
     if (el.settings.hidden) return;
     el.settings.classList.remove('is-open');
+    lockPage(!el.sheet.hidden);
     setTimeout(() => { el.settings.hidden = true; }, 300);
   }
 
