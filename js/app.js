@@ -11,6 +11,7 @@
   const DOW_MED = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
   const DOW_LONG = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   const THEMES = { system: 'Automático', light: 'Claro', dark: 'Oscuro' };
   const MONTHS_AHEAD = 15;  // meses que se pintan al arrancar
   const MONTHS_CHUNK = 6;   // meses que se añaden al llegar a un extremo
@@ -88,6 +89,12 @@
     }, s.mercadona || {});
     if (!s.mercadona.hours || !s.mercadona.hours.M) s.mercadona.hours = { M: '6:00–14:30', T: '13:30–22:00' };
     if (!s.mercadona.overrides || typeof s.mercadona.overrides !== 'object') s.mercadona.overrides = {};
+    // Vacaciones: periodos { from, to, who } con who = 'alsa' | 'merc' | 'both'.
+    if (!Array.isArray(s.vacations)) s.vacations = [];
+    Object.keys(s.mercadona.overrides).forEach((k) => {
+      if (s.mercadona.overrides[k] === 'libre') { s.vacations.push({ from: k, to: k, who: 'merc' }); delete s.mercadona.overrides[k]; }
+    });
+    s.vacations = s.vacations.filter((v) => v && /^\d{4}-\d{2}-\d{2}$/.test(v.from) && /^\d{4}-\d{2}-\d{2}$/.test(v.to) && ['alsa', 'merc', 'both'].includes(v.who));
     // Cuadrante nuevo publicado: se adopta salvo que el usuario haya editado el suyo.
     if (s.dataVersion !== SEALED.version && !s.edited) s.cuadrante = defaults.cuadrante.map((r) => r.slice());
     s.dataVersion = SEALED.version;
@@ -136,8 +143,35 @@
     if (k.startsWith('cart')) return 'carta';
     return 'otro';
   }
+  /* Vacaciones (de ALSA, de Mercadona o de los dos) ------------------------------------- */
+  function covers(v, key) { return v.from <= key && key <= v.to; }
+  function onVacation(d, who) {
+    const key = iso(d);
+    return state.vacations.some((v) => covers(v, key) && (v.who === who || v.who === 'both'));
+  }
+  function addVacation(from, to, who) {
+    if (from > to) { const t = from; from = to; to = t; }
+    state.vacations.push({ from, to, who });
+    state.vacations.sort((a, b) => a.from.localeCompare(b.from));
+  }
+  // Quita un día de las vacaciones de `who`; si el periodo era de los dos, el otro conserva ese día.
+  function removeVacationDay(d, who) {
+    const key = iso(d);
+    const prev = addDays(d, -1);
+    const next = addDays(d, 1);
+    const out = [];
+    state.vacations.forEach((v) => {
+      if (!covers(v, key) || (v.who !== who && v.who !== 'both')) { out.push(v); return; }
+      if (v.from < key) out.push({ from: v.from, to: iso(prev), who: v.who });
+      if (v.to > key) out.push({ from: iso(next), to: v.to, who: v.who });
+      if (v.who === 'both') out.push({ from: key, to: key, who: who === 'alsa' ? 'merc' : 'alsa' });
+    });
+    state.vacations = out.sort((a, b) => a.from.localeCompare(b.from));
+  }
+
   function shiftFor(d) {
     const turno = turnoFor(d);
+    if (onVacation(d, 'alsa')) return { type: 'descanso', vacation: true, lugar: '', hora: '', servicio: '', raw: '', turno, tone: 'descanso' };
     const shift = parseCell(state.cuadrante[turno - 1][dow(d)]);
     shift.turno = turno;
     shift.tone = toneOf(shift);
@@ -161,7 +195,7 @@
     let type = 'trabajo';
     let shift = wk.shift;
     let why = '';
-    if (ov === 'libre') { type = 'libre'; why = 'vacaciones'; }
+    if (onVacation(d, 'merc')) { type = 'libre'; why = 'vacaciones'; }
     else if (ov === 'M' || ov === 'T') { shift = ov; why = 'cambio'; }
     else if (m.sundayOff && dow(d) === 6) { type = 'libre'; why = 'domingo'; }
     else if (dow(d) === wk.restDow) { type = 'libre'; why = 'descanso'; }
@@ -203,10 +237,12 @@
     return 'el ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
   }
   function shiftText(s) {
+    if (s.vacation) return 'Vacaciones';
     if (s.type === 'descanso') return 'Descanso';
     return (s.lugar + ' ' + s.hora).trim();
   }
   function shiftTitle(s) {
+    if (s.vacation) return '<span class="mark mark-vac">Vacaciones</span>';
     if (s.type === 'descanso') return '<span class="mark">Descanso</span>';
     return esc(s.lugar) + (s.hora ? ' <span class="hour">' + esc(s.hora) + '</span>' : '');
   }
@@ -240,7 +276,7 @@
       if (n) mSub = 'Libre ' + relDay(n);
     }
     const mVal = m.type === 'libre'
-      ? '<span class="merc-t">Libre</span>' + (m.why === 'vacaciones' ? ' (vacaciones)' : '')
+      ? (m.why === 'vacaciones' ? '<span class="mark mark-vac">Vacaciones</span>' : '<span class="merc-t">Libre</span>')
       : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours);
 
     const both = nextBoth(today);
@@ -265,6 +301,7 @@
     let work = 0;
     let rest = 0;
     let both = 0;
+    let vac = 0;
     let cells = '';
     for (let i = 0; i < dow(firstDay); i++) cells += '<div class="cell blank"></div>';
     for (let d = 1; d <= lastDay.getDate(); d++) {
@@ -274,16 +311,17 @@
       const isRest = s.type === 'descanso';
       const mRest = m.type === 'libre';
       if (isRest) rest++; else work++;
+      if (s.vacation) vac++;
       if (isRest && mRest) both++;
       const cls = ['cell', 'tone-' + s.tone];
-      if (isRest) cls.push('is-rest');
+      if (s.vacation) cls.push('is-vac'); else if (isRest) cls.push('is-rest');
       if (isRest && mRest) cls.push('is-both');
       if (sameDay(date, today)) cls.push('is-today');
       if (date < today) cls.push('is-past');
       cells += '<button type="button" class="' + cls.join(' ') + '" data-date="' + iso(date) + '" aria-label="' + esc(fmtLong(date)) + '. ALSA: ' + esc(shiftText(s)) + '. Mercadona: ' + esc(mercText(m)) + '">'
         + '<span class="num">' + d + '</span>'
         + '<span class="hour">' + (isRest ? '' : esc(s.hora || s.lugar.slice(0, 3))) + '</span>'
-        + '<span class="merc' + (mRest ? '' : ' m-work') + '">' + (mRest ? 'libre' : m.shift) + '</span>'
+        + '<span class="merc' + (mRest ? (m.why === 'vacaciones' ? ' m-vac' : '') : ' m-work') + '">' + (mRest ? 'libre' : m.shift) + '</span>'
         + '</button>';
     }
     const sec = document.createElement('section');
@@ -291,7 +329,7 @@
     sec.dataset.ym = ym.y + '-' + pad(ym.m + 1);
     sec.innerHTML = '<header class="month-head">'
       + '<h2 class="month-name">' + cap(MONTHS[ym.m]) + ' <span>' + ym.y + '</span></h2>'
-      + '<p class="month-stats">' + plural(rest, 'descanso', 'descansos') + ', ' + both + ' juntos</p>'
+      + '<p class="month-stats">' + plural(rest, 'descanso', 'descansos') + (vac ? ', ' + vac + ' de vacaciones' : '') + ', ' + both + ' juntos</p>'
       + '</header>'
       + '<div class="grid">' + cells + '</div>';
     return sec;
@@ -366,28 +404,33 @@
       const mx = mercFor(x);
       rows += '<div class="wk-row' + (sameDay(x, d) ? ' is-sel' : '') + (sx.type === 'descanso' && mx.type === 'libre' ? ' is-both' : '') + '">'
         + '<span class="wk-day">' + DOW_MED[i] + ' ' + x.getDate() + '</span>'
-        + '<span class="wk-main tone-' + sx.tone + (sx.type === 'descanso' ? ' is-rest' : '') + '">' + (sx.type === 'descanso' ? '<span class="mark">Descanso</span>' : esc(sx.lugar) + ' <span class="hour">' + esc(sx.hora) + '</span>') + '</span>'
-        + '<span class="wk-merc' + (mx.type === 'libre' ? ' is-libre' : '') + '">' + (mx.type === 'libre' ? 'Libre' : '<span class="merc-t">' + MERC_SHIFT[mx.shift] + '</span>') + '</span>'
+        + '<span class="wk-main tone-' + sx.tone + (sx.type === 'descanso' ? ' is-rest' : '') + '">' + (sx.type === 'descanso' ? shiftTitle(sx) : esc(sx.lugar) + ' <span class="hour">' + esc(sx.hora) + '</span>') + '</span>'
+        + '<span class="wk-merc' + (mx.type === 'libre' ? (mx.why === 'vacaciones' ? ' is-vac' : ' is-libre') : '') + '">' + (mx.type === 'libre' ? (mx.why === 'vacaciones' ? 'Vacaciones' : 'Libre') : '<span class="merc-t">' + MERC_SHIFT[mx.shift] + '</span>') + '</span>'
         + '</div>';
     }
     const meta = [];
     if (s.servicio) meta.push('Servicio ' + esc(s.servicio));
     meta.push('turno ' + s.turno);
-    const mercWhy = { domingo: 'Domingo', descanso: 'Descanso semanal', vacaciones: 'Vacaciones', cambio: 'Cambio de turno' }[m.why] || '';
-    let mercBtn;
-    if (m.override === 'libre') mercBtn = 'Quitar las vacaciones de este día';
-    else if (m.type === 'libre') mercBtn = 'Marcar que trabajas este día';
-    else mercBtn = 'Marcar vacaciones en Mercadona';
+    const mercWhy = { domingo: 'Domingo', descanso: 'Descanso semanal', vacaciones: '', cambio: 'Cambio de turno' }[m.why] || '';
+    const alsaVac = onVacation(d, 'alsa');
+    const mercVac = onVacation(d, 'merc');
+    const alsaBtn = alsaVac ? 'Quitar vacaciones de ALSA' : 'Vacaciones de ALSA';
+    const mercBtn = mercVac ? 'Quitar vacaciones de Mercadona' : 'Vacaciones de Mercadona';
+    const bothBtn = (!alsaVac && !mercVac) ? '<button type="button" class="btn-merc btn-vac" data-action="vac-toggle" data-who="both">Vacaciones de los dos</button>' : '';
     el.sheet.innerHTML = '<div class="handle" aria-hidden="true"></div>'
       + '<p class="sh-date">' + cap(fmtLong(d)) + ' de ' + d.getFullYear() + '</p>'
       + '<p class="sh-who">ALSA</p>'
       + '<h2 class="sh-title tone-' + s.tone + '">' + shiftTitle(s) + '</h2>'
       + '<p class="sh-sub">' + cap(meta.join(', ')) + '</p>'
       + '<p class="sh-who">Mercadona</p>'
-      + '<h2 class="sh-merc">' + (m.type === 'libre' ? '<span class="mark">Libre</span>' : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours)) + '</h2>'
+      + '<h2 class="sh-merc">' + (m.type === 'libre' ? (m.why === 'vacaciones' ? '<span class="mark mark-vac">Vacaciones</span>' : '<span class="mark">Libre</span>') : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours)) + '</h2>'
       + (mercWhy ? '<p class="sh-sub">' + mercWhy + '</p>' : '')
       + (s.type === 'descanso' && m.type === 'libre' ? '<p class="sh-both">Los dos libres este día</p>' : '')
-      + '<button type="button" class="btn-merc" data-action="merc-toggle">' + mercBtn + '</button>'
+      + '<div class="sh-actions">'
+      + bothBtn
+      + '<button type="button" class="btn-merc btn-vac" data-action="vac-toggle" data-who="alsa">' + alsaBtn + '</button>'
+      + '<button type="button" class="btn-merc btn-vac" data-action="vac-toggle" data-who="merc">' + mercBtn + '</button>'
+      + '</div>'
       + '<div class="wk">' + rows + '</div>';
     clearTimeout(sheetTimer);
     el.sheet.hidden = false;
@@ -470,6 +513,21 @@
       + '<p class="set-text" style="margin-top:12px">Las vacaciones y los cambios sueltos se marcan tocando el día en el calendario.</p>'
       + '</section>';
 
+    const WHO = { alsa: 'ALSA', merc: 'Mercadona', both: 'Los dos' };
+    const fmtDay = (k) => { const x = fromIso(k); return x.getDate() + ' ' + MONTHS_SHORT[x.getMonth()] + (x.getFullYear() !== today.getFullYear() ? ' ' + x.getFullYear() : ''); };
+    const vacItems = state.vacations.map((v, i) => '<div class="vac-item"><span class="vac-who">' + WHO[v.who] + '</span><span class="vac-dates">' + (v.from === v.to ? fmtDay(v.from) : 'Del ' + fmtDay(v.from) + ' al ' + fmtDay(v.to)) + '</span><button type="button" class="btn-quiet" data-action="vac-remove" data-index="' + i + '">Quitar</button></div>').join('');
+    const vacGroup = '<section class="set-group">'
+      + '<h3 class="set-title">Vacaciones</h3>'
+      + '<p class="set-text">Se muestran en azul y cuentan como días libres. Para un día suelto, tócalo en el calendario.</p>'
+      + (vacItems ? '<div class="vac-list">' + vacItems + '</div>' : '')
+      + '<div class="vac-form">'
+      + '<label>Desde<input type="date" id="vac-from"></label>'
+      + '<label>Hasta<input type="date" id="vac-to"></label>'
+      + '<div class="seg" role="group" aria-label="De quién"><button type="button" class="is-active" data-action="vac-who" data-who="both">Los dos</button><button type="button" data-action="vac-who" data-who="alsa">ALSA</button><button type="button" data-action="vac-who" data-who="merc">Mercadona</button></div>'
+      + '<button type="button" class="btn-primary" data-action="vac-add">Añadir vacaciones</button>'
+      + '</div>'
+      + '</section>';
+
     const seg = Object.keys(THEMES).map((t) =>
       '<button type="button" class="' + (state.theme === t ? 'is-active' : '') + '" data-action="set-theme" data-theme="' + t + '" aria-pressed="' + (state.theme === t) + '">' + THEMES[t] + '</button>').join('');
 
@@ -487,6 +545,7 @@
       + '<button type="button" class="btn-quiet" data-action="reset-cuadrante">Restablecer el cuadrante original</button>'
       + '</section>'
       + mercGroup
+      + vacGroup
       + '<section class="set-group">'
       + '<h3 class="set-title">Aspecto</h3>'
       + '<div class="seg" role="group" aria-label="Aspecto">' + seg + '</div>'
@@ -577,16 +636,32 @@
       saveState();
       renderAll();
       renderSettings();
-    } else if (a === 'merc-toggle') {
+    } else if (a === 'vac-toggle') {
       if (!sheetDay) return;
+      const who = btn.dataset.who;
       const key = iso(sheetDay);
-      const m = mercFor(sheetDay);
-      if (m.override === 'libre') delete state.mercadona.overrides[key];
-      else if (m.type === 'libre') state.mercadona.overrides[key] = mercWeek(sheetDay).shift;
-      else state.mercadona.overrides[key] = 'libre';
+      if (who === 'both') addVacation(key, key, 'both');
+      else if (onVacation(sheetDay, who)) removeVacationDay(sheetDay, who);
+      else addVacation(key, key, who);
       saveState();
       renderAll();
       openDay(sheetDay);
+    } else if (a === 'vac-add') {
+      const from = document.getElementById('vac-from').value;
+      const to = document.getElementById('vac-to').value || from;
+      const who = (document.querySelector('.vac-form .seg .is-active') || {}).dataset ? document.querySelector('.vac-form .seg .is-active').dataset.who : 'both';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { document.getElementById('vac-from').focus(); return; }
+      addVacation(from, to, who);
+      saveState();
+      renderAll();
+      renderSettings();
+    } else if (a === 'vac-who') {
+      document.querySelectorAll('.vac-form .seg button').forEach((b) => b.classList.toggle('is-active', b === btn));
+    } else if (a === 'vac-remove') {
+      state.vacations.splice(Number(btn.dataset.index), 1);
+      saveState();
+      renderAll();
+      renderSettings();
     } else if (a === 'forget-device') {
       if (window.confirm('¿Quitar el acceso en este dispositivo? Para volver a ver el horario habrá que escribir la clave.')) {
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* nada */ }

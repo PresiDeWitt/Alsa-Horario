@@ -19,7 +19,7 @@ Además del cuadrante de ALSA, el calendario lleva el horario de Mercadona para 
 - **Mercadona** tiene un día libre a la semana que **avanza un día cada semana** (martes, luego miércoles, luego jueves…), los domingos siempre libre, y el turno se alterna: una semana **mañanas (6:00–14:30)** y la siguiente **tardes (13:30–22:00)**.
 - En cada día del calendario, bajo la hora de ALSA, aparece **M** (mañanas), **T** (tardes) o **libre** en verde. Los días en que libran los dos tienen el fondo verde, y la cabecera indica el próximo.
 - **Ajustes → Mercadona**: se elige una semana de referencia, qué día se libra esa semana y qué turno toca; el resto se calcula. También si los domingos son libres y si se alternan los turnos, y los horarios.
-- **Vacaciones o cambios sueltos**: tocar el día → *Marcar vacaciones en Mercadona* (o *Marcar que trabajas este día*).
+- **Vacaciones** (de ALSA, de Mercadona o de los dos): en azul, y cuentan como días libres. Un día suelto se marca tocándolo en el calendario; un periodo entero, en **Ajustes → Vacaciones** (desde, hasta, de quién).
 
 ## Cómo se usa
 
