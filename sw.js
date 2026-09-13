@@ -1,11 +1,11 @@
 /* Horario — cache de la app para que abra sin conexión */
-const CACHE = 'horario-b11';
+const CACHE = 'horario-b12';
 const SHELL = [
   './',
   './index.html',
-  './css/styles.css?v=11',
-  './js/data.js?v=11',
-  './js/app.js?v=11',
+  './css/styles.css?v=12',
+  './js/data.js?v=12',
+  './js/app.js?v=12',
   './manifest.webmanifest',
   './icons/favicon.svg',
   './icons/icon-192.png',

@@ -347,7 +347,12 @@ p, h1, h2, h3 { margin: 0; }
 /* Ajustes ------------------------------------------------------------- */
 .settings {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 480px;
+  margin: 0 auto;
   z-index: 60;
   background: var(--bg);
   overflow-y: auto;
@@ -356,6 +361,9 @@ p, h1, h2, h3 { margin: 0; }
   transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .settings.is-open { transform: none; }
+@media (min-width: 560px) {
+  .settings { box-shadow: -1px 0 0 var(--line), 1px 0 0 var(--line); }
+}
 .set-top {
   position: sticky;
   top: 0;
