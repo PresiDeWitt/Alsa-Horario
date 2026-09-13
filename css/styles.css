@@ -54,7 +54,7 @@
 
 /* Base --------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; overflow-anchor: none; scrollbar-width: none; }
+html { -webkit-text-size-adjust: 100%; overflow-anchor: none; scrollbar-width: none; overscroll-behavior-y: contain; }
 html.has-modal, html.has-modal body { overflow: hidden; }
 html::-webkit-scrollbar { display: none; }
 body {
@@ -414,13 +414,13 @@ p, h1, h2, h3 { margin: 0; }
 .vac-item .btn-quiet { margin-top: 0; font-size: 13px; }
 .vac-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .vac-form label { font-size: 12px; font-weight: 600; color: var(--ink-2); display: grid; gap: 4px; }
-.vac-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; min-width: 0; }
+.vac-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; min-width: 0; }
 .vac-form .seg { grid-column: span 2; margin-top: 2px; }
 .btn-primary { grid-column: span 2; padding: 11px; border-radius: 9px; background: var(--vac); color: var(--vac-ink); font-size: 15px; font-weight: 600; }
 .btn-primary:active { opacity: 0.8; }
 .hours { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .hours label { font-size: 12px; font-weight: 600; color: var(--ink-2); display: grid; gap: 4px; }
-.hours input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; min-width: 0; width: 100%; }
+.hours input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; font-size: 16px; min-width: 0; width: 100%; }
 .seg button { padding: 7px 14px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--ink-2); }
 .seg button.is-active { background: var(--bg); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
 .editor { margin-top: 12px; overflow: hidden; }
@@ -462,7 +462,7 @@ p, h1, h2, h3 { margin: 0; }
   background: var(--bg);
   color: var(--ink);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
 }
 .ed-cell.tone-descanso { background: var(--rest); border-color: transparent; color: var(--rest-ink); font-weight: 600; }
 .ed-cell:focus { outline: 2px solid var(--sevilla); outline-offset: -1px; }
