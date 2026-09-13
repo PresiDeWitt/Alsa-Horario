@@ -30,8 +30,7 @@
 
   const el = {
     topDate: document.getElementById('top-date'),
-    topShift: document.getElementById('top-shift'),
-    topSub: document.getElementById('top-sub'),
+    topRows: document.getElementById('top-rows'),
     btnToday: document.getElementById('btn-today'),
     btnSettings: document.getElementById('btn-settings'),
     months: document.getElementById('months'),
@@ -75,8 +74,20 @@
       edited: false,
       dataVersion: SEALED.version,
       key: null,
+      mercadona: null,
     };
     if (saved && typeof saved === 'object') Object.assign(s, saved);
+    s.mercadona = Object.assign({
+      anchorMonday: '2026-09-14', // semana de referencia
+      restDow: 1,                 // 0 = lunes … 6 = domingo; ese día libra esa semana
+      shift: 'M',                 // 'M' mañanas, 'T' tardes esa semana
+      sundayOff: true,            // los domingos siempre libre
+      alternate: true,            // mañanas y tardes se alternan cada semana
+      hours: { M: '6:00–14:30', T: '13:30–22:00' },
+      overrides: {},              // fecha -> 'libre' | 'M' | 'T' (vacaciones, cambios)
+    }, s.mercadona || {});
+    if (!s.mercadona.hours || !s.mercadona.hours.M) s.mercadona.hours = { M: '6:00–14:30', T: '13:30–22:00' };
+    if (!s.mercadona.overrides || typeof s.mercadona.overrides !== 'object') s.mercadona.overrides = {};
     // Cuadrante nuevo publicado: se adopta salvo que el usuario haya editado el suyo.
     if (s.dataVersion !== SEALED.version && !s.edited) s.cuadrante = defaults.cuadrante.map((r) => r.slice());
     s.dataVersion = SEALED.version;
@@ -132,6 +143,43 @@
     shift.tone = toneOf(shift);
     return shift;
   }
+  /* Mercadona: descanso progresivo (un día más tarde cada semana), turno alterno --------- */
+  const MERC_SHIFT = { M: 'Mañanas', T: 'Tardes' };
+  function mercWeek(d) {
+    const m = state.mercadona;
+    const w = weeksBetween(mondayOf(fromIso(m.anchorMonday)), mondayOf(d));
+    const cycle = m.sundayOff ? 6 : 7;
+    const restDow = (((m.restDow + w) % cycle) + cycle) % cycle;
+    const other = m.shift === 'M' ? 'T' : 'M';
+    const shift = m.alternate ? ((((w % 2) + 2) % 2) === 0 ? m.shift : other) : m.shift;
+    return { w, restDow, shift };
+  }
+  function mercFor(d) {
+    const m = state.mercadona;
+    const wk = mercWeek(d);
+    const ov = m.overrides[iso(d)];
+    let type = 'trabajo';
+    let shift = wk.shift;
+    let why = '';
+    if (ov === 'libre') { type = 'libre'; why = 'vacaciones'; }
+    else if (ov === 'M' || ov === 'T') { shift = ov; why = 'cambio'; }
+    else if (m.sundayOff && dow(d) === 6) { type = 'libre'; why = 'domingo'; }
+    else if (dow(d) === wk.restDow) { type = 'libre'; why = 'descanso'; }
+    return { type, shift, hours: m.hours[shift] || '', why, override: ov || null };
+  }
+  function mercText(x) {
+    if (x.type === 'libre') return 'Libre' + (x.why === 'vacaciones' ? ' (vacaciones)' : '');
+    return MERC_SHIFT[x.shift] + (x.hours ? ' ' + x.hours : '');
+  }
+  function isBoth(d) { return shiftFor(d).type === 'descanso' && mercFor(d).type === 'libre'; }
+  function nextBoth(from) {
+    for (let i = 0; i <= 180; i++) {
+      const d = addDays(from, i);
+      if (isBoth(d)) return d;
+    }
+    return null;
+  }
+
   function nextOfType(from, type) {
     for (let i = 1; i <= 90; i++) {
       const d = addDays(from, i);
@@ -168,20 +216,41 @@
   function renderTop() {
     const s = shiftFor(today);
     el.topDate.textContent = cap(fmtLong(today));
-    el.topShift.className = 'top-shift tone-' + s.tone;
-    el.topShift.innerHTML = shiftTitle(s);
 
     let sub;
     if (!state.configured) {
-      sub = 'Se asume el turno 1 esta semana. <button type="button" class="link" data-action="settings">Elegir mi turno</button>';
+      sub = 'Se asume el turno 1 esta semana. <button type="button" class="link" data-action="settings">Elegir el turno</button>';
     } else if (s.type === 'descanso') {
       const next = nextOfType(today, 'trabajo');
-      sub = next ? 'Vuelves ' + relDay(next) + ', ' + esc(shiftText(shiftFor(next))) : 'Sin servicios próximos';
+      sub = next ? 'Vuelve ' + relDay(next) + ', ' + esc(shiftText(shiftFor(next))) : 'Sin servicios próximos';
     } else {
       const next = nextOfType(today, 'descanso');
       sub = (s.servicio ? 'Servicio ' + esc(s.servicio) + '. ' : '') + (next ? 'Descanso ' + relDay(next) : '');
     }
-    el.topSub.innerHTML = sub;
+
+    const m = mercFor(today);
+    let mSub = '';
+    if (m.type === 'libre') {
+      let n = null;
+      for (let i = 1; i <= 14; i++) { const x = addDays(today, i); if (mercFor(x).type === 'trabajo') { n = x; break; } }
+      if (n) mSub = 'Vuelves ' + relDay(n) + ' de ' + MERC_SHIFT[mercFor(n).shift].toLowerCase();
+    } else {
+      let n = null;
+      for (let i = 1; i <= 14; i++) { const x = addDays(today, i); if (mercFor(x).type === 'libre') { n = x; break; } }
+      if (n) mSub = 'Libre ' + relDay(n);
+    }
+    const mVal = m.type === 'libre'
+      ? '<span class="merc-t">Libre</span>' + (m.why === 'vacaciones' ? ' (vacaciones)' : '')
+      : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours);
+
+    const both = nextBoth(today);
+    const bothVal = both
+      ? (sameDay(both, today) ? '<span class="mark">Hoy</span>' : cap(relDay(both)) + (daysBetween(today, both) >= 7 ? '' : ' ' + both.getDate()))
+      : 'Ninguno en los próximos seis meses';
+
+    el.topRows.innerHTML = '<span class="top-k">ALSA</span><span class="top-v tone-' + s.tone + '">' + shiftTitle(s) + '<small>' + sub + '</small></span>'
+      + '<span class="top-k">Mercadona</span><span class="top-v">' + mVal + (mSub ? '<small>' + mSub + '</small>' : '') + '</span>'
+      + '<span class="top-k">Libres juntos</span><span class="top-v">' + bothVal + '</span>';
 
     // La vista previa (preview.html) muestra el servicio de hoy en el botón de accesos rápidos.
     if (window.parent !== window) {
@@ -195,20 +264,26 @@
     const lastDay = new Date(ym.y, ym.m + 1, 0);
     let work = 0;
     let rest = 0;
+    let both = 0;
     let cells = '';
     for (let i = 0; i < dow(firstDay); i++) cells += '<div class="cell blank"></div>';
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(ym.y, ym.m, d);
       const s = shiftFor(date);
+      const m = mercFor(date);
       const isRest = s.type === 'descanso';
+      const mRest = m.type === 'libre';
       if (isRest) rest++; else work++;
+      if (isRest && mRest) both++;
       const cls = ['cell', 'tone-' + s.tone];
       if (isRest) cls.push('is-rest');
+      if (isRest && mRest) cls.push('is-both');
       if (sameDay(date, today)) cls.push('is-today');
       if (date < today) cls.push('is-past');
-      cells += '<button type="button" class="' + cls.join(' ') + '" data-date="' + iso(date) + '" aria-label="' + esc(fmtLong(date)) + ': ' + esc(shiftText(s)) + (s.servicio ? ', servicio ' + esc(s.servicio) : '') + '">'
+      cells += '<button type="button" class="' + cls.join(' ') + '" data-date="' + iso(date) + '" aria-label="' + esc(fmtLong(date)) + '. ALSA: ' + esc(shiftText(s)) + '. Mercadona: ' + esc(mercText(m)) + '">'
         + '<span class="num">' + d + '</span>'
-        + (isRest ? '' : '<span class="hour">' + esc(s.hora || s.lugar.slice(0, 3)) + '</span>')
+        + '<span class="hour">' + (isRest ? '' : esc(s.hora || s.lugar.slice(0, 3))) + '</span>'
+        + '<span class="merc' + (mRest ? '' : ' m-work') + '">' + (mRest ? 'libre' : m.shift) + '</span>'
         + '</button>';
     }
     const sec = document.createElement('section');
@@ -216,7 +291,7 @@
     sec.dataset.ym = ym.y + '-' + pad(ym.m + 1);
     sec.innerHTML = '<header class="month-head">'
       + '<h2 class="month-name">' + cap(MONTHS[ym.m]) + ' <span>' + ym.y + '</span></h2>'
-      + '<p class="month-stats">' + plural(work, 'servicio', 'servicios') + ', ' + plural(rest, 'descanso', 'descansos') + '</p>'
+      + '<p class="month-stats">' + plural(rest, 'descanso', 'descansos') + ', ' + both + ' juntos</p>'
       + '</header>'
       + '<div class="grid">' + cells + '</div>';
     return sec;
@@ -278,26 +353,41 @@
   }, { rootMargin: '800px 0px 800px 0px' });
 
   /* Hoja de detalle --------------------------------------------------- */
+  let sheetDay = null;
   function openDay(d) {
+    sheetDay = d;
     const s = shiftFor(d);
+    const m = mercFor(d);
     const monday = mondayOf(d);
-    let rows = '';
+    let rows = '<div class="wk-head"><span></span><span>ALSA</span><span>Mercadona</span></div>';
     for (let i = 0; i < 7; i++) {
       const x = addDays(monday, i);
       const sx = shiftFor(x);
-      rows += '<div class="wk-row' + (sameDay(x, d) ? ' is-sel' : '') + '">'
+      const mx = mercFor(x);
+      rows += '<div class="wk-row' + (sameDay(x, d) ? ' is-sel' : '') + (sx.type === 'descanso' && mx.type === 'libre' ? ' is-both' : '') + '">'
         + '<span class="wk-day">' + DOW_MED[i] + ' ' + x.getDate() + '</span>'
         + '<span class="wk-main tone-' + sx.tone + (sx.type === 'descanso' ? ' is-rest' : '') + '">' + (sx.type === 'descanso' ? '<span class="mark">Descanso</span>' : esc(sx.lugar) + ' <span class="hour">' + esc(sx.hora) + '</span>') + '</span>'
-        + '<span class="wk-serv">' + (sx.servicio ? esc(sx.servicio) : '') + '</span>'
+        + '<span class="wk-merc' + (mx.type === 'libre' ? ' is-libre' : '') + '">' + (mx.type === 'libre' ? 'Libre' : '<span class="merc-t">' + MERC_SHIFT[mx.shift] + '</span>') + '</span>'
         + '</div>';
     }
     const meta = [];
     if (s.servicio) meta.push('Servicio ' + esc(s.servicio));
     meta.push('turno ' + s.turno);
+    const mercWhy = { domingo: 'Domingo', descanso: 'Descanso semanal', vacaciones: 'Vacaciones', cambio: 'Cambio de turno' }[m.why] || '';
+    let mercBtn;
+    if (m.override === 'libre') mercBtn = 'Quitar las vacaciones de este día';
+    else if (m.type === 'libre') mercBtn = 'Marcar que trabajas este día';
+    else mercBtn = 'Marcar vacaciones en Mercadona';
     el.sheet.innerHTML = '<div class="handle" aria-hidden="true"></div>'
       + '<p class="sh-date">' + cap(fmtLong(d)) + ' de ' + d.getFullYear() + '</p>'
+      + '<p class="sh-who">ALSA</p>'
       + '<h2 class="sh-title tone-' + s.tone + '">' + shiftTitle(s) + '</h2>'
       + '<p class="sh-sub">' + cap(meta.join(', ')) + '</p>'
+      + '<p class="sh-who">Mercadona</p>'
+      + '<h2 class="sh-merc">' + (m.type === 'libre' ? '<span class="mark">Libre</span>' : '<span class="merc-t">' + MERC_SHIFT[m.shift] + '</span> ' + esc(m.hours)) + '</h2>'
+      + (mercWhy ? '<p class="sh-sub">' + mercWhy + '</p>' : '')
+      + (s.type === 'descanso' && m.type === 'libre' ? '<p class="sh-both">Los dos libres este día</p>' : '')
+      + '<button type="button" class="btn-merc" data-action="merc-toggle">' + mercBtn + '</button>'
       + '<div class="wk">' + rows + '</div>';
     clearTimeout(sheetTimer);
     el.sheet.hidden = false;
@@ -354,6 +444,32 @@
         + '<div class="ed-rows">' + rows + '</div>'
         + '</details>';
     });
+    const mc = state.mercadona;
+    const refMonday = settingsWeek || mondayOf(fromIso(mc.anchorMonday));
+    const wk = mercWeek(refMonday);
+    let dows = '';
+    for (let i = 0; i < 7; i++) {
+      dows += '<button type="button" class="turno' + (i === wk.restDow ? ' is-active' : '') + '" data-action="merc-rest" data-dow="' + i + '" aria-pressed="' + (i === wk.restDow) + '" aria-label="' + DOW_LONG[i] + '">' + ['L', 'M', 'X', 'J', 'V', 'S', 'D'][i] + '</button>';
+    }
+    const mercSeg = ['M', 'T'].map((t) =>
+      '<button type="button" class="' + (wk.shift === t ? 'is-active' : '') + '" data-action="merc-shift" data-shift="' + t + '" aria-pressed="' + (wk.shift === t) + '">' + MERC_SHIFT[t] + '</button>').join('');
+    const mercGroup = '<section class="set-group">'
+      + '<h3 class="set-title">Mercadona</h3>'
+      + '<p class="set-text">El día libre avanza uno cada semana y el turno se alterna. Elige una semana y di qué día libras y qué turno haces; el resto se calcula.</p>'
+      + '<div class="week-nav"><button type="button" class="btn-icon" data-action="merc-week" data-delta="-1" aria-label="Semana anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"/></svg></button>'
+      + '<span>Semana del ' + refMonday.getDate() + ' al ' + addDays(refMonday, 6).getDate() + ' de ' + MONTHS[addDays(refMonday, 6).getMonth()] + '</span>'
+      + '<button type="button" class="btn-icon" data-action="merc-week" data-delta="1" aria-label="Semana siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></svg></button></div>'
+      + '<p class="set-sub">Día libre esa semana</p>'
+      + '<div class="dows" role="group" aria-label="Día libre">' + dows + '</div>'
+      + '<p class="set-sub">Turno esa semana</p>'
+      + '<div class="seg seg-merc" role="group" aria-label="Turno">' + mercSeg + '</div>'
+      + '<label class="check"><input type="checkbox" data-merc="sundayOff"' + (mc.sundayOff ? ' checked' : '') + '> Los domingos siempre libre</label>'
+      + '<label class="check"><input type="checkbox" data-merc="alternate"' + (mc.alternate ? ' checked' : '') + '> Alternar mañanas y tardes cada semana</label>'
+      + '<p class="set-sub">Horarios</p>'
+      + '<div class="hours"><label>Mañanas<input data-merc-hours="M" value="' + esc(mc.hours.M) + '"></label><label>Tardes<input data-merc-hours="T" value="' + esc(mc.hours.T) + '"></label></div>'
+      + '<p class="set-text" style="margin-top:12px">Las vacaciones y los cambios sueltos se marcan tocando el día en el calendario.</p>'
+      + '</section>';
+
     const seg = Object.keys(THEMES).map((t) =>
       '<button type="button" class="' + (state.theme === t ? 'is-active' : '') + '" data-action="set-theme" data-theme="' + t + '" aria-pressed="' + (state.theme === t) + '">' + THEMES[t] + '</button>').join('');
 
@@ -370,6 +486,7 @@
       + '<div class="editor">' + editor + '</div>'
       + '<button type="button" class="btn-quiet" data-action="reset-cuadrante">Restablecer el cuadrante original</button>'
       + '</section>'
+      + mercGroup
       + '<section class="set-group">'
       + '<h3 class="set-title">Aspecto</h3>'
       + '<div class="seg" role="group" aria-label="Aspecto">' + seg + '</div>'
@@ -388,7 +505,9 @@
       + '</section>'
       + '</div>';
   }
+  let settingsWeek = null;
   function openSettings() {
+    settingsWeek = null;
     renderSettings();
     el.settings.hidden = false;
     void el.settings.offsetHeight;
@@ -444,6 +563,30 @@
         renderAll();
         renderSettings();
       }
+    } else if (a === 'merc-week') {
+      const base = settingsWeek || mondayOf(fromIso(state.mercadona.anchorMonday));
+      settingsWeek = addDays(base, 7 * Number(btn.dataset.delta));
+      renderSettings();
+    } else if (a === 'merc-rest' || a === 'merc-shift') {
+      // Re-anclar en la semana elegida con lo que ya se calcula para ella, cambiando solo lo tocado.
+      const monday = settingsWeek || mondayOf(fromIso(state.mercadona.anchorMonday));
+      const wk = mercWeek(monday);
+      state.mercadona.anchorMonday = iso(monday);
+      state.mercadona.restDow = a === 'merc-rest' ? Number(btn.dataset.dow) : wk.restDow;
+      state.mercadona.shift = a === 'merc-shift' ? btn.dataset.shift : wk.shift;
+      saveState();
+      renderAll();
+      renderSettings();
+    } else if (a === 'merc-toggle') {
+      if (!sheetDay) return;
+      const key = iso(sheetDay);
+      const m = mercFor(sheetDay);
+      if (m.override === 'libre') delete state.mercadona.overrides[key];
+      else if (m.type === 'libre') state.mercadona.overrides[key] = mercWeek(sheetDay).shift;
+      else state.mercadona.overrides[key] = 'libre';
+      saveState();
+      renderAll();
+      openDay(sheetDay);
     } else if (a === 'forget-device') {
       if (window.confirm('¿Quitar el acceso en este dispositivo? Para volver a ver el horario habrá que escribir la clave.')) {
         try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* nada */ }
@@ -457,6 +600,21 @@
     if (input) input.className = 'ed-cell tone-' + toneOf(parseCell(input.value));
   });
   el.settings.addEventListener('change', (e) => {
+    const check = e.target.closest('input[data-merc]');
+    if (check) {
+      state.mercadona[check.dataset.merc] = check.checked;
+      saveState();
+      renderAll();
+      renderSettings();
+      return;
+    }
+    const hours = e.target.closest('input[data-merc-hours]');
+    if (hours) {
+      state.mercadona.hours[hours.dataset.mercHours] = hours.value.trim();
+      saveState();
+      renderAll();
+      return;
+    }
     const input = e.target.closest('.ed-cell');
     if (!input) return;
     const p = input.dataset.cell.split(':').map(Number);

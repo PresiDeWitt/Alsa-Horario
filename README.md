@@ -12,11 +12,20 @@ python tools/serve.py
 
 y abre <http://localhost:4173/preview.html>: la app dentro de un móvil (iPhone o Android) y el mock del botón «Horario» junto al Wi‑Fi. La app sola está en <http://localhost:4173/index.html>.
 
+## Dos horarios en un calendario
+
+Además del cuadrante de ALSA, el calendario lleva el horario de Mercadona para ver qué días libran los dos:
+
+- **Mercadona** tiene un día libre a la semana que **avanza un día cada semana** (martes, luego miércoles, luego jueves…), los domingos siempre libre, y el turno se alterna: una semana **mañanas (6:00–14:30)** y la siguiente **tardes (13:30–22:00)**.
+- En cada día del calendario, bajo la hora de ALSA, aparece **M** (mañanas), **T** (tardes) o **libre** en verde. Los días en que libran los dos tienen el fondo verde, y la cabecera indica el próximo.
+- **Ajustes → Mercadona**: se elige una semana de referencia, qué día se libra esa semana y qué turno toca; el resto se calcula. También si los domingos son libres y si se alternan los turnos, y los horarios.
+- **Vacaciones o cambios sueltos**: tocar el día → *Marcar vacaciones en Mercadona* (o *Marcar que trabajas este día*).
+
 ## Cómo se usa
 
 - **Arriba**: la fecha, el servicio de hoy (o *Descanso*) y cuándo es el próximo descanso o el próximo servicio.
 - **El calendario**: se desplaza sin fin hacia delante y hacia atrás. Cada mes indica cuántos servicios y descansos tiene. Los descansos son círculos amarillos; bajo cada día de trabajo, la hora en azul (Sevilla) o rojo (Cartagena). Hoy lleva un anillo.
-- **Un día**: al tocarlo se abre su detalle (lugar, hora, servicio, turno) y la semana completa.
+- **Un día**: al tocarlo se abre su detalle (ALSA: lugar, hora, servicio, turno; Mercadona: turno y horario) y la semana completa de los dos.
 - **Hoy**: si te alejas, aparece un botón para volver.
 - **Ajustes** (engranaje): el turno de esta semana, el cuadrante editable (un bloque por turno, un día por línea), el aspecto (automático, claro, oscuro), el acceso de este dispositivo y cómo instalarla.
 
